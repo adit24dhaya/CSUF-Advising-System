@@ -1,7 +1,4 @@
 # CSUF-Advising-System
-
-# CSUF CS Advising System
-
 This project is a conversational AI-powered advising system designed to answer student questions about the Computer Science program at California State University, Fullerton (CSUF). It leverages the power of Large Language Models (LLMs) and efficient quantization techniques to provide helpful and informative responses.
 
 ## Description
