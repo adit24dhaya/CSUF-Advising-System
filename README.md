@@ -62,3 +62,17 @@ Run the `advising_system.py` script:
 
 ```bash
 python advising_system.py
+```
+
+You will then be prompted to enter your questions. Type "exit" to quit the system.
+
+## Example Queries
+1.    "What are the prerequisites for Machine Learning?"
+2.    "What are the graduation requirements for the CS major?"
+3.    "Where can I find information about advising?"
+
+##    Future Improvements
+*    Fine-tuning the model with more specific CSUF data for improved accuracy.
+*    Implementing a web or mobile interface for broader accessibility.
+*    Adding support for more complex queries and multi-turn conversations.
+*    Improving error handling and robustness.
