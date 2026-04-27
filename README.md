@@ -20,6 +20,9 @@ The system utilizes a pre-trained Large Language Model (specifically, a quantize
 *   **Link Integration:** Relevant CSUF website links are provided within the responses for further exploration.
 *   **Efficient Inference:** 4-bit quantization using the `bitsandbytes` library enables efficient use of resources.
 *   **Fast Fallback Mode:** Rule-based advising for prerequisites, graduation requirements, and relevant links without loading the LLM.
+*   **Progress + Next Courses:** Supports completed-course input and recommends likely eligible next courses.
+*   **One-Shot CLI Mode:** Run a single query and optionally export JSON output.
+*   **Project Quality:** Added `requirements.txt`, test suite, `.gitignore`, and CI workflow.
 
 ## Technologies Used
 
@@ -57,7 +60,7 @@ The system utilizes a pre-trained Large Language Model (specifically, a quantize
 
 ## Usage
 
-Run in fast mode (default):
+Run in fast mode (default interactive):
 
 ```bash
 python "CSUF CS Advising System.py"
@@ -69,6 +72,30 @@ Run with quantized LLM mode:
 python "CSUF CS Advising System.py" --mode llm
 ```
 
+Run a one-shot question:
+
+```bash
+python "CSUF CS Advising System.py" --query "What are graduation requirements?"
+```
+
+Run with completed courses and get recommendations:
+
+```bash
+python "CSUF CS Advising System.py" --query "What can I take next?" --completed-courses "CPSC 120A,CPSC 120L,CPSC 121A,CPSC 121L"
+```
+
+Export response to JSON:
+
+```bash
+python "CSUF CS Advising System.py" --query "What can I take next?" --json-output advising_output.json
+```
+
+You can also append completed courses inside the query:
+
+```text
+What can I take next? completed: CPSC 120A, CPSC 120L, CPSC 121A, CPSC 121L
+```
+
 You will then be prompted to enter your questions. Type "exit" to quit the system.
 
 ## Example Queries
@@ -76,8 +103,21 @@ You will then be prompted to enter your questions. Type "exit" to quit the syste
 *    "What are the graduation requirements for the CS major?"
 *    "Where can I find information about advising?"
 
-##    Future Improvements
-*    Fine-tuning the model with more specific CSUF data for improved accuracy.
-*    Implementing a web or mobile interface for broader accessibility.
-*    Adding support for more complex queries and multi-turn conversations.
-*    Improving error handling and robustness.
+## Development
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+## Future Improvements
+* Fine-tuning the model with more specific CSUF data for improved accuracy.
+* Implementing a web or mobile interface for broader accessibility.
+* Adding support for richer prerequisite graphs and term-by-term planning constraints.

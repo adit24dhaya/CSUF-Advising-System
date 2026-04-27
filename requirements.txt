@@ -1,0 +1,6 @@
+transformers
+huggingface_hub
+bitsandbytes
+accelerate
+torch
+pytest
