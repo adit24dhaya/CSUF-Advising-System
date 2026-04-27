@@ -1,15 +1,9 @@
-pip install bitsandbytes transformers accelerate --upgrade
-
 import logging
+import os
+import argparse
 import torch
-import itertools
-import time
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from huggingface_hub import login
-
-# Authenticate with HuggingFace
-huggingface_token = "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"  # Replace with your token
-login(token=huggingface_token)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, filename="advising_system.log", filemode="a",
@@ -18,6 +12,10 @@ logging.basicConfig(level=logging.INFO, filename="advising_system.log", filemode
 # Load the quantized model and tokenizer
 def load_quantized_model():
     model_name = "meta-llama/Llama-2-7b-chat-hf"
+    huggingface_token = os.getenv("HUGGINGFACE_TOKEN")
+    if not huggingface_token:
+        raise RuntimeError("Missing HUGGINGFACE_TOKEN environment variable.")
+    login(token=huggingface_token)
 
     # Configure 4-bit quantization
     bnb_config = BitsAndBytesConfig(
@@ -31,21 +29,50 @@ def load_quantized_model():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, token=huggingface_token)
 
     # Load model with quantization and assign device
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=bnb_config,
         device_map="auto",  # Automatically uses GPU if available
-        use_auth_token=True
+        token=huggingface_token
     )
 
     return model, tokenizer, device
 
-# Initialize the quantized model and tokenizer
-model, tokenizer, device = load_quantized_model()
-print("Quantized model loaded successfully!")
+def build_fast_advising_response(query):
+    """Rule-based advising fallback for common student questions."""
+    q = query.lower()
+    lines = []
+
+    if any(k in q for k in ["graduation", "graduate", "units"]):
+        lines.append("Graduation baseline: 120 total units, including 39 upper-division units.")
+        lines.append("You should also satisfy CS core, GE, and science/math elective requirements.")
+
+    if "machine learning" in q:
+        lines.append("CPSC 483 (Intro to Machine Learning) prerequisites: CPSC 131, Math 150A, and Statistics.")
+    if "cryptography" in q:
+        lines.append("CPSC 352/452 (Cryptography) prerequisites: CPSC 131 and CPSC 240.")
+
+    matched_courses = [course for course in csuf_courses if course.lower() in q]
+    if matched_courses:
+        for course in matched_courses[:4]:
+            lines.append(f"{course}: {csuf_courses[course]}")
+
+    if any(k in q for k in ["math", "calculus", "statistics"]):
+        lines.append("Math requirements include: Math 150A, Math 150B, Math 170A, Math 170B, and Statistics.")
+
+    relevant_links = [f"- {name.capitalize()}: {url}" for name, url in csuf_links.items() if name in q]
+    if relevant_links:
+        lines.append("Useful links:")
+        lines.extend(relevant_links)
+
+    if not lines:
+        lines.append("I can help with CSUF CS prerequisites, graduation requirements, course info, and advising links.")
+        lines.append("Try asking: 'What do I need for CPSC 483?' or 'What are CS graduation requirements?'")
+
+    return "\n".join(lines)
 
 # CSUF links dictionary
 csuf_links = {
@@ -197,8 +224,14 @@ def generate_response(model, tokenizer, base_context, query, links_dict, device,
         logging.error(f"Error generating response: {e}")
         return "An error occurred while generating the response. Please try again."
 
+def generate_response_with_fallback(model, tokenizer, base_context, query, links_dict, device):
+    """Use LLM when available, otherwise return fast deterministic advising response."""
+    if model is None or tokenizer is None:
+        return build_fast_advising_response(query)
+    return generate_response(model, tokenizer, base_context, query, links_dict, device)
+
 # Advising System Main Loop
-def advising_system():
+def advising_system(model=None, tokenizer=None, device="cpu"):
     print("Welcome to the CS Advising System!")
     print("Type 'exit' to quit.\n")
 
@@ -211,7 +244,7 @@ def advising_system():
                 print("Goodbye!")
                 break
 
-            response = generate_response(model, tokenizer, base_context, query, csuf_links, device)
+            response = generate_response_with_fallback(model, tokenizer, base_context, query, csuf_links, device)
             print(f"\nResponse:\n{response}\n")
         except KeyboardInterrupt:
             print("\nSession ended by user.")
@@ -219,6 +252,33 @@ def advising_system():
         except Exception as e:
             print(f"An error occurred: {e}")
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="CSUF Advising System")
+    parser.add_argument(
+        "--mode",
+        choices=["fast", "llm"],
+        default="fast",
+        help="Use fast rule-based advising or quantized LLM mode."
+    )
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    model = None
+    tokenizer = None
+    device = "cpu"
+
+    if args.mode == "llm":
+        try:
+            model, tokenizer, device = load_quantized_model()
+            print("Quantized model loaded successfully!")
+        except Exception as e:
+            print(f"LLM mode unavailable ({e}). Falling back to fast mode.")
+            logging.error(f"LLM mode fallback triggered: {e}")
+
+    advising_system(model=model, tokenizer=tokenizer, device=device)
+
 # Run the advising system
-advising_system()
+if __name__ == "__main__":
+    main()
 
